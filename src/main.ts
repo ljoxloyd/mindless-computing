@@ -60,10 +60,11 @@ export class Passport {
     static issueTo(func: Function, parent?: HasPassport, args?: any[]) {
         function wrapper(...args: any[]) {
             const output = func(...args)
-            if (output instanceof Function) {
+            
+            if (output instanceof Function) 
                 return Passport.issueTo(output, wrapper, args)
-            }
-            return output
+            else 
+                return output
         }
 
         if (parent && args)
