@@ -5,7 +5,7 @@ namespace Sequence {
     }
 }
 
-namespace Utils {
+export namespace Utils {
     export function format(template: string, vars: object) {
         return template.replace(/%(\w+)/g, (_, name) => vars[name])
     }
@@ -21,7 +21,11 @@ namespace Utils {
     }
 }
 
-class Passport {
+export interface HasPassport {
+    passport: Passport
+}
+
+export class Passport {
     private constructor(
         public readonly func: Function,
         public readonly args: any[]
@@ -31,10 +35,10 @@ class Passport {
         return new Passport(fn, [])
     }
 
-    static extend(fn: { passport: Passport }, argArray: any[]): Passport {
+    static extend(parentFn: HasPassport, args: any[]): Passport {
         return new Passport(
-            fn.passport.func,
-            fn.passport.args.concat(argArray)
+            parentFn.passport.func,
+            parentFn.passport.args.concat(args)
         )
     }
 
@@ -53,37 +57,24 @@ class Passport {
         })
     }
 
-    static issueTo(func: Function, args?: any[]) {
+    static issueTo(func: Function, parent?: HasPassport, args?: any[]) {
         function wrapper(...args: any[]) {
             const output = func(...args)
             if (output instanceof Function) {
-                output.passport = Passport.extend(wrapper, args)
-                return Passport.issueTo(output, args)
+                return Passport.issueTo(output, wrapper, args)
             }
             return output
         }
 
-        if (!Passport.isIssued(func))
+        if (parent && args)
+            wrapper.passport = Passport.extend(parent, args)
+        else
             wrapper.passport = Passport.init(func)
 
         return wrapper
     }
 
-    static isIssued(func: any): func is { passport: Passport } {
+    static isIssued(func: any): func is HasPassport {
         return func.passport instanceof Passport
     }
 }
-
-const where = propName => expectation => item =>
-    item instanceof Object &&
-    (expectation == item[propName] ||
-        (expectation instanceof Function && expectation(item[propName])))
-
-
-const where$ = Passport.issueTo(where)
-
-
-
-console.assert(where$.passport.func === where)
-console.assert(where$.passport.func === where$('fund_id').passport.func, 'product must reference origninal function')
-console.assert()
